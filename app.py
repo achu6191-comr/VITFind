@@ -1,10 +1,12 @@
 import streamlit as st
 import sqlite3
+import os
 from datetime import datetime
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 DB = "data/vitfind.db"
+os.makedirs("data", exist_ok=True)
 
 def init_db():
     conn = sqlite3.connect(DB)
