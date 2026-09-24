@@ -1,3 +1,4 @@
+import re
 import streamlit as st
 from datetime import datetime
 from supabase import create_client
@@ -74,43 +75,56 @@ def get_reports(report_type=None):
     ]
 
 
-def find_matches(lost_description, lost_location):
+def find_matches(lost_description, lost_location=""):
     found = get_reports("Found")
-
     if not found:
         return []
 
-    documents = [lost_description] + [
-        f"{row[2]} {row[3]} {row[4]}"
-        for row in found
-    ]
+    # 1. Clean and tokenize lost query keywords
+    clean_lost = re.sub(r"[^\w\s]", " ", (lost_description or "").lower())
+    lost_words = {w for w in clean_lost.split() if len(w) > 2}
+    lost_loc = (lost_location or "").strip().lower()
 
-    vectorizer = TfidfVectorizer(stop_words="english")
-    matrix = vectorizer.fit_transform(documents)
+    # 2. Vectorize query + all found items at once (preserves proper IDF weights)
+    corpus = [lost_description] + [f"{r[2]} {r[3]}" for r in found]
 
-    scores = cosine_similarity(
-        matrix[0:1],
-        matrix[1:]
-    ).flatten()
+    try:
+        vectorizer = TfidfVectorizer(stop_words="english", ngram_range=(1, 2))
+        tfidf = vectorizer.fit_transform(corpus)
+        text_scores = cosine_similarity(tfidf[0:1], tfidf[1:])[0]
+    except ValueError:
+        text_scores = [0.0] * len(found)
 
     results = []
 
-    for row, score in zip(found, scores):
-        location_bonus = (
-            0.12
-            if lost_location.strip().lower() in row[4].lower()
-            else 0
+    for i, row in enumerate(found):
+        item_name = str(row[2] or "").lower()
+        found_location = str(row[4] or "").strip().lower()
+
+        text_score = float(text_scores[i])
+
+        # 3. Item title & brand match boost
+        item_words = set(re.sub(r"[^\w\s]", " ", item_name).split())
+        matched_keywords = lost_words & item_words
+        keyword_bonus = min(len(matched_keywords) * 0.15, 0.30)
+
+        # 4. Location match (supports containment and shared terms)
+        location_bonus = 0.0
+        if lost_loc and found_location:
+            if lost_loc in found_location or found_location in lost_loc:
+                location_bonus = 0.20
+            elif set(lost_loc.split()) & set(found_location.split()):
+                location_bonus = 0.10
+
+        # 5. Composite score capped at 1.0 (100%)
+        final_score = min(
+            (text_score * 0.50) + keyword_bonus + location_bonus,
+            1.0
         )
 
-        final_score = min(score + location_bonus, 1.0)
+        results.append((round(final_score, 3), row))
 
-        results.append((final_score, row))
-
-    return sorted(
-        results,
-        key=lambda x: x[0],
-        reverse=True
-    )
+    return sorted(results, key=lambda x: x[0], reverse=True)
 
 
 # ---------------- UI ----------------
