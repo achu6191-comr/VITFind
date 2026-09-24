@@ -18,14 +18,33 @@ supabase = create_client(
 
 
 def add_report(report_type, item_name, description, location, contact):
+    # Check whether the exact same report already exists
+    existing = (
+        supabase
+        .table("reports")
+        .select("id")
+        .eq("report_type", report_type)
+        .eq("item_name", item_name.strip())
+        .eq("description", description.strip())
+        .eq("location", location.strip())
+        .eq("contact", contact.strip())
+        .limit(1)
+        .execute()
+    )
+
+    if existing.data:
+        return False
+
     supabase.table("reports").insert({
         "report_type": report_type,
-        "item_name": item_name,
-        "description": description,
-        "location": location,
-        "contact": contact,
+        "item_name": item_name.strip(),
+        "description": description.strip(),
+        "location": location.strip(),
+        "contact": contact.strip(),
         "created_at": datetime.now().strftime("%Y-%m-%d %H:%M")
     }).execute()
+
+    return True
 
 
 def get_reports(report_type=None):
