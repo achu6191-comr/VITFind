@@ -46,12 +46,14 @@ def mask_contact(contact_str: str) -> str:
 
 
 CATEGORIES = [
-    "📱 Electronics & Gadgets",
+    "📱 Electronics & Chargers",
     "💳 ID Cards & Wallets",
-    "🔑 Keys",
-    "🎒 Bags & Backpacks",
-    "👕 Clothing & Accessories",
-    "📚 Books & Stationery",
+    "🔑 Keys & Keychains",
+    "🧴 Water Bottles & Flasks",
+    "🌂 Umbrellas",
+    "🧮 Calculators & Stationery",
+    "👓 Spectacles & Eyewear",
+    "🎒 Bags & Pouches",
     "📦 Other"
 ]
 
